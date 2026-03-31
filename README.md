@@ -1,4 +1,4 @@
-# Asistente Virtual Local
+# Inna — Asistente Virtual Local
 
 Sistema de automatización inteligente que corre completamente en tu equipo (on-premise), sin depender de servicios pagos. Analiza correos, gestiona tu agenda y genera reportes diarios usando modelos de IA locales.
 

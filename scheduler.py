@@ -1,5 +1,5 @@
 """
-Scheduler del Asistente Virtual.
+Scheduler de Inna — Asistente Virtual.
 Ejecuta el pipeline automáticamente en horarios definidos.
 
 Uso:

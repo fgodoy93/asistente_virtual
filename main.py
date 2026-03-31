@@ -1,5 +1,5 @@
 """
-Orquestador principal del Asistente Virtual Local.
+Orquestador principal de Inna — Asistente Virtual Local.
 Ejecuta el pipeline completo: correos → clasificación → calendario → reporte.
 
 Uso:
@@ -26,7 +26,7 @@ from config import ICS_PATH, REPORT_EMAIL
 
 def print_header():
     print("\n" + "="*55)
-    print("   ASISTENTE VIRTUAL LOCAL — by fgodoy93")
+    print("   INNA — Asistente Virtual Local — by fgodoy93")
     print(f"   {datetime.now().strftime('%A %d/%m/%Y %H:%M')}")
     print("="*55)
 
@@ -141,7 +141,7 @@ def run(send_report: bool = True):
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Asistente Virtual Local")
+    parser = argparse.ArgumentParser(description="Inna — Asistente Virtual Local")
     parser.add_argument("--check",    action="store_true", help="Solo verificar conexiones")
     parser.add_argument("--no-email", action="store_true", help="No enviar reporte por correo")
     args = parser.parse_args()

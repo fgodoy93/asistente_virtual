@@ -128,7 +128,7 @@ def build_html_report(emails: list[dict], events: list[dict],
     </style>
 </head>
 <body>
-    <h1>Informe Diario del Asistente Virtual</h1>
+    <h1>Informe Diario — Inna</h1>
     <p style="color:#666">Generado el {now}</p>
 
     <h2>Resumen Ejecutivo</h2>
@@ -151,7 +151,7 @@ def build_html_report(emails: list[dict], events: list[dict],
         {event_rows if event_rows else '<tr><td colspan="3" style="text-align:center;color:#999">Sin eventos programados</td></tr>'}
     </table>
 
-    <div class="footer">Asistente Virtual Local — {now}</div>
+    <div class="footer">Inna — Asistente Virtual Local — {now}</div>
 </body>
 </html>"""
     return html
