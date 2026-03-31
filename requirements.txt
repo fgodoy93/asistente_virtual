@@ -1,0 +1,17 @@
+# Asistente Virtual Local — Dependencias
+# Instalar con: pip install -r requirements.txt
+
+# Variables de entorno
+python-dotenv==1.0.1
+
+# Peticiones HTTP (para Ollama API)
+requests==2.31.0
+
+# Lectura de calendarios .ics
+icalendar==5.0.13
+
+# Generación de PDF
+reportlab==4.1.0
+
+# Scheduler / automatización
+schedule==1.2.1

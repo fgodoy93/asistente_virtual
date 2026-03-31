@@ -1,0 +1,27 @@
+# Credenciales — NUNCA subir al repositorio
+.env
+
+# Base de datos local
+data/emails.db
+data/cache/
+
+# Reportes generados (archivos grandes)
+data/reports/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+dist/
+build/
+.venv/
+venv/
+env/
+
+# IDEs
+.vscode/
+.idea/
+*.swp
