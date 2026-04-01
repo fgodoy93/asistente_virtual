@@ -8,7 +8,11 @@ import sqlite3
 from email.header import decode_header
 from datetime import datetime
 from pathlib import Path
-from config import EMAIL_HOST, EMAIL_PORT, EMAIL_USER, EMAIL_PASS
+from config import EMAIL_HOST, EMAIL_PORT, EMAIL_USER
+from modules.credentials import get_email_password
+from modules.logger import get_logger
+
+log = get_logger(__name__)
 
 
 DB_PATH = "data/emails.db"
@@ -88,10 +92,11 @@ def fetch_emails(limit: int = 30, folder: str = "INBOX") -> list[dict]:
     conn = init_db()
     emails_list = []
 
-    print(f"  Conectando a {EMAIL_HOST}...")
+    log.info("Conectando a %s...", EMAIL_HOST)
     try:
+        password = get_email_password(EMAIL_USER)
         mail = imaplib.IMAP4_SSL(EMAIL_HOST, EMAIL_PORT)
-        mail.login(EMAIL_USER, EMAIL_PASS)
+        mail.login(EMAIL_USER, password)
         mail.select(folder)
 
         # Buscar correos no leídos
@@ -99,14 +104,14 @@ def fetch_emails(limit: int = 30, folder: str = "INBOX") -> list[dict]:
         ids = data[0].split()
 
         if not ids:
-            print("  No hay correos nuevos.")
+            log.info("No hay correos nuevos.")
             mail.logout()
             conn.close()
             return []
 
         # Tomar solo los más recientes
         ids = ids[-limit:]
-        print(f"  {len(ids)} correos nuevos encontrados.")
+        log.info("%d correos nuevos encontrados.", len(ids))
 
         for eid in ids:
             _, msg_data = mail.fetch(eid, "(RFC822)")
@@ -141,7 +146,7 @@ def fetch_emails(limit: int = 30, folder: str = "INBOX") -> list[dict]:
             })
 
         mail.logout()
-        print(f"  {len(emails_list)} correos guardados en BD.")
+        log.info("%d correos guardados en BD.", len(emails_list))
 
     except imaplib.IMAP4.error as e:
         raise RuntimeError(
@@ -149,6 +154,7 @@ def fetch_emails(limit: int = 30, folder: str = "INBOX") -> list[dict]:
             "Para Gmail: activa 'App Passwords' en tu cuenta Google."
         )
     except Exception as e:
+        log.error("Error al conectar al correo: %s", e)
         raise RuntimeError(f"Error al conectar al correo: {e}")
     finally:
         conn.close()

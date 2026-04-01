@@ -1,4 +1,4 @@
-# Asistente Virtual Local — Dependencias
+# Inna — Asistente Virtual Local
 # Instalar con: pip install -r requirements.txt
 
 # Variables de entorno
@@ -15,3 +15,9 @@ reportlab==4.1.0
 
 # Scheduler / automatización
 schedule==1.2.1
+
+# Almacenamiento seguro de credenciales (Windows Credential Manager)
+keyring==25.2.1
+
+# Tests
+pytest==8.2.2

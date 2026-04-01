@@ -1,40 +1,62 @@
 """
 Clasificador de correos usando LLM local.
 Categorías: urgente, importante, informativo, spam
+
+Optimización: clasificación en batch — todos los correos en una sola llamada al LLM.
 """
+import json
 import sqlite3
 from modules.llm_engine import ask_llm
 from modules.email_reader import DB_PATH, init_db
+from modules.logger import get_logger
+
+log = get_logger(__name__)
 
 CATEGORIES = ["urgente", "importante", "informativo", "spam"]
 
-SYSTEM_PROMPT = """Eres un asistente experto en clasificacion de correos electronicos.
-Tu unica tarea es clasificar el correo que se te presenta en UNA de estas categorias:
+BATCH_SYSTEM_PROMPT = """Eres un experto en clasificacion de correos electronicos.
+Clasificaras una lista de correos. Para cada uno debes asignar UNA categoria:
 - urgente: requiere respuesta o accion inmediata
 - importante: relevante pero no critico de inmediato
 - informativo: newsletters, notificaciones, avisos sin accion requerida
-- spam: publicidad no deseada, phishing, correos irrelevantes
+- spam: publicidad no deseada, phishing, irrelevantes
 
-Responde UNICAMENTE con una de las cuatro palabras exactas. Sin explicacion, sin puntuacion."""
-
-
-def classify_email(subject: str, body: str) -> str:
-    """Clasifica un correo con el LLM y retorna la categoría."""
-    prompt = f"""Asunto: {subject}
-Cuerpo (primeras 800 palabras): {body[:800]}
-
-Categoria:"""
-    result = ask_llm(prompt, system=SYSTEM_PROMPT).lower().strip().rstrip(".")
-    # Validar que la respuesta sea una categoría válida
-    for cat in CATEGORIES:
-        if cat in result:
-            return cat
-    return "informativo"
+Responde UNICAMENTE con un objeto JSON valido con el formato:
+{"resultados": [{"id": "id_del_correo", "categoria": "categoria"}]}
+Sin explicaciones, sin texto extra, solo el JSON."""
 
 
-def classify_pending() -> dict:
+def _parse_batch_response(response: str, expected_ids: list[str]) -> dict[str, str]:
+    """Parsea la respuesta JSON del batch y retorna {id: categoria}."""
+    # Extraer JSON aunque el modelo agregue texto extra
+    start = response.find("{")
+    end   = response.rfind("}") + 1
+    if start == -1 or end == 0:
+        raise ValueError("No se encontro JSON en la respuesta del LLM")
+
+    data = json.loads(response[start:end])
+    results = {}
+    for item in data.get("resultados", []):
+        eid = str(item.get("id", ""))
+        cat = str(item.get("categoria", "")).lower().strip()
+        if eid and cat in CATEGORIES:
+            results[eid] = cat
+
+    # Fallback para IDs que no vinieron en la respuesta
+    for eid in expected_ids:
+        if eid not in results:
+            results[eid] = "informativo"
+
+    return results
+
+
+def classify_pending(batch_size: int = 10) -> dict:
     """
-    Clasifica todos los correos con categoría 'sin_clasificar' en la BD.
+    Clasifica todos los correos 'sin_clasificar' usando llamadas en batch al LLM.
+    Reduce las llamadas al modelo de N a ceil(N/batch_size).
+
+    Args:
+        batch_size: Correos por llamada al LLM (default 10).
 
     Returns:
         Diccionario con conteo por categoría.
@@ -45,30 +67,51 @@ def classify_pending() -> dict:
     ).fetchall()
 
     if not rows:
-        print("  No hay correos pendientes de clasificar.")
+        log.info("No hay correos pendientes de clasificar.")
         conn.close()
         return {}
 
-    print(f"  Clasificando {len(rows)} correos...")
+    log.info("Clasificando %d correos en batches de %d...", len(rows), batch_size)
     counts = {cat: 0 for cat in CATEGORIES}
 
-    for eid, subject, body in rows:
+    # Dividir en batches
+    for i in range(0, len(rows), batch_size):
+        batch = rows[i:i + batch_size]
+        ids   = [r[0] for r in batch]
+
+        # Construir prompt con todos los correos del batch
+        items_text = ""
+        for eid, subject, body in batch:
+            items_text += f'\n- id: "{eid}"\n  asunto: "{subject}"\n  cuerpo: "{body[:400]}"\n'
+
+        prompt = f"""Clasifica estos correos:\n{items_text}\nJSON de resultado:"""
+
         try:
-            category = classify_email(subject, body)
-            conn.execute(
-                "UPDATE emails SET category=? WHERE id=?", (category, eid)
-            )
+            response  = ask_llm(prompt, system=BATCH_SYSTEM_PROMPT)
+            cat_map   = _parse_batch_response(response, ids)
+
+            for eid, category in cat_map.items():
+                conn.execute(
+                    "UPDATE emails SET category=? WHERE id=?", (category, eid)
+                )
+                counts[category] += 1
+                log.info("[%-12s] %s", category.upper(),
+                         next((r[1][:60] for r in batch if r[0] == eid), eid))
+
             conn.commit()
-            counts[category] += 1
-            print(f"    [{category.upper():12}] {subject[:60]}")
+
         except Exception as e:
-            print(f"    [ERROR] No se pudo clasificar '{subject[:40]}': {e}")
-            conn.execute(
-                "UPDATE emails SET category='informativo' WHERE id=?", (eid,)
-            )
+            log.error("Error en batch %d-%d: %s — clasificando como 'informativo'",
+                      i, i + batch_size, e)
+            for eid in ids:
+                conn.execute(
+                    "UPDATE emails SET category='informativo' WHERE id=?", (eid,)
+                )
+                counts["informativo"] += 1
             conn.commit()
 
     conn.close()
+    log.info("Clasificacion completada: %s", counts)
     return counts
 
 

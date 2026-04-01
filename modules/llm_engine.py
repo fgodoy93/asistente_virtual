@@ -1,25 +1,26 @@
 """
 Abstracción del modelo LLM local via Ollama.
-Documentación Ollama: https://github.com/ollama/ollama
+Incluye reintentos con backoff exponencial ante fallos transitorios.
 """
+import time
 import requests
 from config import OLLAMA_URL, OLLAMA_MODEL
+from modules.logger import get_logger
+
+log = get_logger(__name__)
+
+# Configuración de reintentos
+MAX_RETRIES   = 3
+BACKOFF_BASE  = 2   # segundos — espera: 2s, 4s, 8s
 
 
 def ask_llm(prompt: str, system: str = "", model: str = None) -> str:
     """
-    Envía un prompt al modelo local y retorna la respuesta como texto.
-
-    Args:
-        prompt: El texto de entrada para el modelo.
-        system: Instrucción de sistema (rol/contexto del asistente).
-        model: Sobreescribe el modelo por defecto si se especifica.
-
-    Returns:
-        Respuesta del modelo como string.
+    Envía un prompt al modelo local y retorna la respuesta.
+    Reintenta hasta MAX_RETRIES veces con backoff exponencial.
 
     Raises:
-        RuntimeError: Si Ollama no está corriendo o hay error de red.
+        RuntimeError: Si todos los reintentos fallan.
     """
     payload = {
         "model": model or OLLAMA_MODEL,
@@ -32,28 +33,58 @@ def ask_llm(prompt: str, system: str = "", model: str = None) -> str:
         }
     }
 
-    try:
-        response = requests.post(
-            f"{OLLAMA_URL}/api/generate",
-            json=payload,
-            timeout=180
-        )
-        response.raise_for_status()
-        return response.json()["response"].strip()
+    last_error = None
 
-    except requests.exceptions.ConnectionError:
-        raise RuntimeError(
-            "No se puede conectar a Ollama. "
-            "Asegurate de que este corriendo: ollama serve"
-        )
-    except requests.exceptions.Timeout:
-        raise RuntimeError("El modelo tardo demasiado en responder. Intenta con un modelo mas liviano.")
-    except Exception as e:
-        raise RuntimeError(f"Error en LLM: {e}")
+    for attempt in range(1, MAX_RETRIES + 1):
+        try:
+            log.debug("LLM llamada (intento %d/%d)", attempt, MAX_RETRIES)
+            response = requests.post(
+                f"{OLLAMA_URL}/api/generate",
+                json=payload,
+                timeout=180
+            )
+            response.raise_for_status()
+            result = response.json()["response"].strip()
+            log.debug("LLM respuesta recibida (%d chars)", len(result))
+            return result
+
+        except requests.exceptions.ConnectionError as e:
+            last_error = RuntimeError(
+                "No se puede conectar a Ollama. "
+                "Asegurate de que este corriendo: ollama serve"
+            )
+            # Sin reintento en error de conexión — Ollama no está corriendo
+            raise last_error
+
+        except requests.exceptions.Timeout as e:
+            last_error = e
+            wait = BACKOFF_BASE ** attempt
+            log.warning("LLM timeout en intento %d. Reintentando en %ds...", attempt, wait)
+            time.sleep(wait)
+
+        except requests.exceptions.HTTPError as e:
+            last_error = e
+            wait = BACKOFF_BASE ** attempt
+            log.warning("LLM error HTTP %s en intento %d. Reintentando en %ds...",
+                        e.response.status_code, attempt, wait)
+            time.sleep(wait)
+
+        except Exception as e:
+            last_error = e
+            wait = BACKOFF_BASE ** attempt
+            log.warning("LLM error inesperado en intento %d: %s. Reintentando en %ds...",
+                        attempt, e, wait)
+            time.sleep(wait)
+
+    log.error("LLM fallido tras %d intentos: %s", MAX_RETRIES, last_error)
+    raise RuntimeError(
+        f"El modelo no respondio tras {MAX_RETRIES} intentos. "
+        f"Ultimo error: {last_error}"
+    )
 
 
 def check_ollama_available() -> bool:
-    """Verifica si Ollama esta disponible."""
+    """Verifica si Ollama está disponible."""
     try:
         r = requests.get(f"{OLLAMA_URL}/api/tags", timeout=5)
         return r.status_code == 200
