@@ -4,7 +4,7 @@ Incluye reintentos con backoff exponencial ante fallos transitorios.
 """
 import time
 import requests
-from config import OLLAMA_URL, OLLAMA_MODEL
+from config import OLLAMA_URL, OLLAMA_MODEL, OLLAMA_TIMEOUT
 from modules.logger import get_logger
 
 log = get_logger(__name__)
@@ -29,7 +29,7 @@ def ask_llm(prompt: str, system: str = "", model: str = None) -> str:
         "stream": False,
         "options": {
             "temperature": 0.3,
-            "num_predict": 1024,
+            "num_predict": 512,  # reducido para acelerar respuesta
         }
     }
 
@@ -37,11 +37,11 @@ def ask_llm(prompt: str, system: str = "", model: str = None) -> str:
 
     for attempt in range(1, MAX_RETRIES + 1):
         try:
-            log.debug("LLM llamada (intento %d/%d)", attempt, MAX_RETRIES)
+            log.debug("LLM llamada (intento %d/%d, timeout=%ds)", attempt, MAX_RETRIES, OLLAMA_TIMEOUT)
             response = requests.post(
                 f"{OLLAMA_URL}/api/generate",
                 json=payload,
-                timeout=180
+                timeout=OLLAMA_TIMEOUT
             )
             response.raise_for_status()
             result = response.json()["response"].strip()

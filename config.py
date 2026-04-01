@@ -14,8 +14,10 @@ SMTP_HOST = os.getenv("SMTP_HOST", "smtp.gmail.com")
 SMTP_PORT = int(os.getenv("SMTP_PORT", 587))
 
 # Ollama LLM local
-OLLAMA_URL   = os.getenv("OLLAMA_URL", "http://localhost:11434")
-OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "mistral")
+OLLAMA_URL        = os.getenv("OLLAMA_URL", "http://localhost:11434")
+OLLAMA_MODEL      = os.getenv("OLLAMA_MODEL", "mistral")
+OLLAMA_TIMEOUT    = int(os.getenv("OLLAMA_TIMEOUT", 300))   # segundos
+OLLAMA_BATCH_SIZE = int(os.getenv("OLLAMA_BATCH_SIZE", 5))  # correos por llamada
 
 # Calendario
 ICS_PATH = os.getenv("ICS_PATH", "data/calendar.ics")
