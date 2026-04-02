@@ -53,6 +53,22 @@ def decode_str(value: str) -> str:
     return " ".join(decoded).strip()
 
 
+def _safe_decode(raw: bytes, charset: str) -> str:
+    """Decodifica bytes tolerando charsets inválidos o desconocidos."""
+    # Normalizar charsets problemáticos que Python no reconoce
+    _CHARSET_ALIASES = {
+        "unknown-8bit": "latin-1",
+        "x-unknown":    "latin-1",
+        "unknown":      "latin-1",
+    }
+    charset = _CHARSET_ALIASES.get((charset or "").lower(), charset or "utf-8")
+    try:
+        return raw.decode(charset, errors="replace")
+    except (LookupError, UnicodeDecodeError):
+        # Si el charset sigue siendo inválido, forzar latin-1 (nunca falla)
+        return raw.decode("latin-1", errors="replace")
+
+
 def get_body(msg) -> str:
     """Extrae el cuerpo en texto plano del mensaje."""
     body = ""
@@ -61,16 +77,16 @@ def get_body(msg) -> str:
             content_type = part.get_content_type()
             disposition  = str(part.get("Content-Disposition", ""))
             if content_type == "text/plain" and "attachment" not in disposition:
-                charset = part.get_content_charset() or "utf-8"
+                charset = part.get_content_charset()
                 try:
-                    body = part.get_payload(decode=True).decode(charset, errors="replace")
+                    body = _safe_decode(part.get_payload(decode=True), charset)
                     break
                 except Exception:
                     continue
     else:
-        charset = msg.get_content_charset() or "utf-8"
+        charset = msg.get_content_charset()
         try:
-            body = msg.get_payload(decode=True).decode(charset, errors="replace")
+            body = _safe_decode(msg.get_payload(decode=True), charset)
         except Exception:
             body = str(msg.get_payload())
 

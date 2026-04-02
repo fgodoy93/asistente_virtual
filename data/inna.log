@@ -19,6 +19,7 @@
 2026-03-31 21:02:30 [DEBUG   ] modules.llm_engine — LLM llamada (intento 1/3)
 2026-03-31 21:02:30 [DEBUG   ] modules.llm_engine — LLM llamada (intento 1/3)
 2026-03-31 21:02:30 [DEBUG   ] modules.llm_engine — LLM respuesta recibida (5 chars)
+<<<<<<< HEAD
 2026-03-31 21:12:37 [INFO    ] modules.email_reader — Conectando a imap.gmail.com...
 2026-03-31 21:12:37 [DEBUG   ] modules.credentials — Contrasena de correo obtenida desde variable de entorno.
 2026-03-31 21:12:38 [INFO    ] modules.email_reader — 30 correos nuevos encontrados.
@@ -151,3 +152,16 @@
 2026-03-31 23:21:49 [DEBUG   ] modules.llm_engine — LLM llamada (intento 3/3)
 2026-03-31 23:24:51 [WARNING ] modules.llm_engine — LLM timeout en intento 3. Reintentando en 8s...
 2026-03-31 23:24:59 [ERROR   ] modules.llm_engine — LLM fallido tras 3 intentos: HTTPConnectionPool(host='localhost', port=11434): Read timed out. (read timeout=180)
+=======
+2026-03-31 21:06:07 [INFO    ] modules.email_reader — Conectando a imap.gmail.com...
+2026-03-31 21:06:07 [DEBUG   ] modules.credentials — Contrasena de correo obtenida desde variable de entorno.
+2026-03-31 21:06:09 [INFO    ] modules.email_reader — 1 correos nuevos encontrados.
+2026-03-31 21:06:10 [INFO    ] modules.email_reader — 1 correos guardados en BD.
+2026-03-31 21:06:10 [INFO    ] modules.email_classifier — Clasificando 1 correos en batches de 10...
+2026-03-31 21:06:10 [DEBUG   ] modules.llm_engine — LLM llamada (intento 1/3)
+2026-03-31 21:07:19 [DEBUG   ] modules.llm_engine — LLM respuesta recibida (138 chars)
+2026-03-31 21:07:19 [INFO    ] modules.email_classifier — [INFORMATIVO ] La factura de la compra #2000012305389563 ya está disponible
+2026-03-31 21:07:19 [INFO    ] modules.email_classifier — Clasificacion completada: {'urgente': 0, 'importante': 0, 'informativo': 1, 'spam': 0}
+2026-03-31 21:07:19 [DEBUG   ] modules.llm_engine — LLM llamada (intento 1/3)
+2026-03-31 21:08:10 [DEBUG   ] modules.llm_engine — LLM respuesta recibida (228 chars)
+>>>>>>> 5c904f355ca38f5920edd2bacd73b0be16f16acd

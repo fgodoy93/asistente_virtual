@@ -9,6 +9,7 @@ import sqlite3
 from modules.llm_engine import ask_llm
 from modules.email_reader import DB_PATH, init_db
 from modules.logger import get_logger
+from config import OLLAMA_BATCH_SIZE
 
 log = get_logger(__name__)
 
@@ -50,17 +51,20 @@ def _parse_batch_response(response: str, expected_ids: list[str]) -> dict[str, s
     return results
 
 
-def classify_pending(batch_size: int = 10) -> dict:
+def classify_pending(batch_size: int = None) -> dict:
     """
     Clasifica todos los correos 'sin_clasificar' usando llamadas en batch al LLM.
     Reduce las llamadas al modelo de N a ceil(N/batch_size).
 
     Args:
-        batch_size: Correos por llamada al LLM (default 10).
+        batch_size: Correos por llamada al LLM. Por defecto usa OLLAMA_BATCH_SIZE del .env.
 
     Returns:
         Diccionario con conteo por categoría.
     """
+    if batch_size is None:
+        batch_size = OLLAMA_BATCH_SIZE
+
     conn = init_db()
     rows = conn.execute(
         "SELECT id, subject, body FROM emails WHERE category='sin_clasificar'"
@@ -79,10 +83,10 @@ def classify_pending(batch_size: int = 10) -> dict:
         batch = rows[i:i + batch_size]
         ids   = [r[0] for r in batch]
 
-        # Construir prompt con todos los correos del batch
+        # Cuerpo reducido a 200 chars para acelerar la respuesta del modelo
         items_text = ""
         for eid, subject, body in batch:
-            items_text += f'\n- id: "{eid}"\n  asunto: "{subject}"\n  cuerpo: "{body[:400]}"\n'
+            items_text += f'\n- id: "{eid}"\n  asunto: "{subject}"\n  cuerpo: "{body[:200]}"\n'
 
         prompt = f"""Clasifica estos correos:\n{items_text}\nJSON de resultado:"""
 
